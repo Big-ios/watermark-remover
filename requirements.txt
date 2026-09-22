@@ -1,0 +1,11 @@
+# watermark-remover 运行依赖
+#
+# 注意：不需要 torch —— LaMA 走 onnxruntime 推理（15MB），
+# 而 torch 会带来 1.2GB 体积。早期误装过，已移除。
+pymupdf>=1.24          # PDF：解析与内容流手术
+numpy>=1.26            # 数值计算
+scipy>=1.11            # 形态学/统计
+pillow>=10.0           # 图像读写
+opencv-python-headless>=4.9   # 图像/视频处理（headless 版无需图形库）
+onnxruntime>=1.17      # LaMA 模型推理（CPU）
+pytest>=8.0            # 回归测试

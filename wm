@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# wm —— 通用水印清理工具入口
+#
+# 用本目录自带的 venv 运行，不依赖系统 python 是否装了 pymupdf。
+set -euo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PY="$HERE/.venv/bin/python"
+if [ ! -x "$PY" ]; then
+  echo "缺少运行环境：$PY" >&2
+  echo "请先执行：python3 -m venv '$HERE/.venv' && '$HERE/.venv/bin/pip' install -r '$HERE/requirements.txt'" >&2
+  exit 1
+fi
+exec "$PY" "$HERE/wm.py" "$@"
