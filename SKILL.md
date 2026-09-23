@@ -77,20 +77,92 @@ PyMuPDF 的 garbage=4 会**重排对象编号**，让手写的资源引用失效
 
 验证不通过会返回非零退出码。
 
-## 环境
+## 环境配置（用之前先跑这一步）
 
-工具自带 venv，直接调用即可（`wm` 是 bash 包装，会自动用 `./.venv/bin/python`）：
+去水印要用到四类东西，其中两类**不是 pip 一条命令能搞定的**：
+
+| 组件 | 来源 | 麻烦点 |
+|---|---|---|
+| Python 依赖 | pip | 无 |
+| **LaMA 模型权重** | HuggingFace | **208MB，国内直连不通，需走 hf-mirror 镜像** |
+| **ffmpeg** | 系统包 | **pip 装不了，只能 apt / brew** |
+| 虚拟环境 | 自建 venv | 换机器要重建 |
+
+所以配置单独做成一步，且**先体检、再安装**：
+
+```bash
+cd /home/zcl/.pi/agent/skills/watermark-remover
+
+python3 setup.py --check       # ① 先体检：装了没、缺什么（完全无副作用）
+python3 setup.py               # ② 缺什么装什么（幂等，可反复跑）
+python3 setup.py --skip-model  #    只装代码依赖，不下载模型
+python3 setup.py --no-test     #    装完不跑回归测试
+```
+
+**先跑 `--check` 是好习惯** —— 逐项报告且不动任何环境：
+
+```
+环境体检
+----------------------------------------------------
+  ✓ Python 版本        Python 3.12.13
+  ✓ 虚拟环境             Python 3.12.13
+  ✓ ffmpeg           ffmpeg version 6.1.5
+  ✗ Python 依赖        缺少 onnxruntime, pytest
+  ✓ LaMA 模型权重        208MB
+----------------------------------------------------
+  待处理：Python 依赖
+
+执行 `python3 setup.py` 可自动补齐。
+```
+
+### 配置器的四个坚持
+
+**幂等** —— 已就绪时直接报「环境已就绪」退出，反复跑不会重复下载。
+
+**认得出国内网络现实** —— 模型权重先试 `hf-mirror.com`，失败再试 `huggingface.co`；
+pip 默认清华源，失败自动回退官方源。
+
+**不装用不上的东西** —— **刻意不装 torch**：LaMA 走 **onnxruntime**（15MB）
+推理就够，torch 会白占 **1.2GB**。早期误装过，卸载后环境从 1.5G 瘦到 655M，
+功能与 35 项测试全部不受影响。`requirements.txt` 里明确注释了这点，别加回去。
+
+**装完自检** —— 最后跑一遍 35 项回归测试，**全过才算成功**，失败返回非零退出码。
+（测试里有一项会用 ffmpeg 现场合成视频做端到端验证，慢机器可能要几分钟。）
+
+### ffmpeg 装不上会怎样
+
+它不是 pip 包，脚本只能提示：
+
+```bash
+sudo apt install ffmpeg      # Debian / Ubuntu
+brew install ffmpeg          # macOS
+```
+
+**装不上 ffmpeg 时，PDF / 图片 / Office 三个功能仍然可用，只有视频不可用。**
+
+### 模型权重
+
+正常走脚本即可。要手动下载的话，放到 `models/lama_fp32.onnx`：
+
+```bash
+curl -L -o models/lama_fp32.onnx \
+  https://hf-mirror.com/Carve/LaMa-ONNX/resolve/main/lama_fp32.onnx
+```
+
+### 环境组成（参考体积）
+
+```
+watermark-remover/
+├── .venv/     约 655 MB   （不含 torch）
+├── models/    约 208 MB   （lama_fp32.onnx）
+└── 源码+测试  约 200 KB
+```
+
+配置好之后，日常调用就是（`wm` 是 bash 包装，自动使用自带 venv）：
 
 ```bash
 WM=/home/zcl/.pi/agent/skills/watermark-remover/wm
 "$WM" analyze 文档.pdf
-```
-
-若 venv 丢失：
-
-```bash
-cd /home/zcl/.pi/agent/skills/watermark-remover
-bash install.sh
 ```
 
 ## 目录结构
